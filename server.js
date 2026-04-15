@@ -9,16 +9,18 @@ console.log("Loaded DATABASE_URL:", process.env.DATABASE_URL);
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-app.use(
-  cors({
-    origin: [
-      "https://gulf-coast-event-hub.vercel.app",
-      "http://localhost:5173",
-    ],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
+const corsOptions = {
+  origin: [
+    "https://gulf-coast-event-hub.vercel.app",
+    "http://localhost:5173",
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+
 app.use(express.json());
 
 pool
