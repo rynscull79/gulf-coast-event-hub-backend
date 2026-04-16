@@ -9,15 +9,38 @@ console.log("Loaded DATABASE_URL:", process.env.DATABASE_URL);
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const allowedOrigins = [
+  "https://www.gulfcoasteventhub.com",
+  "https://gulfcoasteventhub.com",
+  "https://gulf-coast-event-hub.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "https://gulf-coast-event-hub.vercel.app",
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
     credentials: true,
   })
 );
 
 app.use(express.json());
-app.options("*", cors());
+
+app.options(
+  "*",
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 
 pool
   .query("SELECT NOW()")
