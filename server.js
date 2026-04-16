@@ -217,6 +217,54 @@ app.post("/api/event-requests", async (req, res) => {
       ]
     );
 
+    app.post("/api/contact-message", async (req, res) => {
+  try {
+    const { name, email, phone, message } = req.body;
+
+    if (!name || !email || !phone || !message) {
+      return res.status(400).json({
+        ok: false,
+        message: "Name, email, phone, and message are required.",
+      });
+    }
+
+    try {
+      const emailResult = await resend.emails.send({
+        from: process.env.FROM_EMAIL,
+        to: process.env.NOTIFY_EMAIL,
+        subject: `New Contact Message from ${name}`,
+        html: `
+  <h2>New Contact Message</h2>
+  <p><strong>Name:</strong> ${name}</p>
+  <p><strong>Email:</strong> ${email}</p>
+  <p><strong>Phone:</strong> ${phone}</p>
+  <p><strong>Message:</strong></p>
+  <p>${message}</p>
+`,
+      });
+
+      console.log("CONTACT EMAIL SENT:", emailResult);
+    } catch (emailError) {
+      console.error("CONTACT EMAIL SEND FAILED:", emailError);
+      return res.status(500).json({
+        ok: false,
+        message: "Failed to send message email.",
+      });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      message: "Message sent successfully.",
+    });
+  } catch (error) {
+    console.error("POST contact-message error:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Server error.",
+      error: error.message,
+    });
+  }
+});
     const savedRequest = result.rows[0];
     console.log("GC BACKEND - INSERTED ROW", savedRequest);
 
