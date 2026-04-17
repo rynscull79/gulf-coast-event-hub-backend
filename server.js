@@ -15,32 +15,19 @@ const allowedOrigins = [
   "https://gulf-coast-event-hub.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error(`Not allowed by CORS: ${origin}`));
-    },
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
+  credentials: true,
+};
 
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json());
-
-app.options(
-  "*",
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error(`Not allowed by CORS: ${origin}`));
-    },
-    credentials: true,
-  })
-);
 
 pool
   .query("SELECT NOW()")
@@ -169,7 +156,7 @@ app.get("/api/request-vendors/:eventRequestId", async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
-    console.error("GET request-vendors error:", error);
+    console.error("GET request-vendors by eventRequestId error:", error);
     return res.status(500).json({
       ok: false,
       message: "Failed to fetch vendor assignments.",
@@ -212,64 +199,16 @@ app.post("/api/event-requests", async (req, res) => {
         phone,
         eventDate,
         eventType,
-        JSON.stringify(services),
-        details,
+        JSON.stringify(services || []),
+        details || null,
       ]
     );
 
-    app.post("/api/contact-message", async (req, res) => {
-  try {
-    const { name, email, phone, message } = req.body;
-
-    if (!name || !email || !phone || !message) {
-      return res.status(400).json({
-        ok: false,
-        message: "Name, email, phone, and message are required.",
-      });
-    }
-
-    try {
-      const emailResult = await resend.emails.send({
-        from: process.env.FROM_EMAIL,
-        to: process.env.NOTIFY_EMAIL,
-        subject: `New Contact Message from ${name}`,
-        html: `
-  <h2>New Contact Message</h2>
-  <p><strong>Name:</strong> ${name}</p>
-  <p><strong>Email:</strong> ${email}</p>
-  <p><strong>Phone:</strong> ${phone}</p>
-  <p><strong>Message:</strong></p>
-  <p>${message}</p>
-`,
-      });
-
-      console.log("CONTACT EMAIL SENT:", emailResult);
-    } catch (emailError) {
-      console.error("CONTACT EMAIL SEND FAILED:", emailError);
-      return res.status(500).json({
-        ok: false,
-        message: "Failed to send message email.",
-      });
-    }
-
-    return res.status(201).json({
-      ok: true,
-      message: "Message sent successfully.",
-    });
-  } catch (error) {
-    console.error("POST contact-message error:", error);
-    return res.status(500).json({
-      ok: false,
-      message: "Server error.",
-      error: error.message,
-    });
-  }
-});
     const savedRequest = result.rows[0];
     console.log("GC BACKEND - INSERTED ROW", savedRequest);
 
-    const servicesList = Array.isArray(savedRequest.services)
-      ? savedRequest.services.join(", ")
+    const servicesList = Array.isArray(services)
+      ? services.join(", ")
       : savedRequest.services;
 
     try {
@@ -306,6 +245,55 @@ app.post("/api/event-requests", async (req, res) => {
     return res.status(500).json({
       ok: false,
       message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/contact-message", async (req, res) => {
+  try {
+    const { name, email, phone, message } = req.body;
+
+    if (!name || !email || !phone || !message) {
+      return res.status(400).json({
+        ok: false,
+        message: "Name, email, phone, and message are required.",
+      });
+    }
+
+    try {
+      const emailResult = await resend.emails.send({
+        from: process.env.FROM_EMAIL,
+        to: process.env.NOTIFY_EMAIL,
+        subject: `New Contact Message from ${name}`,
+        html: `
+          <h2>New Contact Message</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Phone:</strong> ${phone}</p>
+          <p><strong>Message:</strong></p>
+          <p>${message}</p>
+        `,
+      });
+
+      console.log("CONTACT EMAIL SENT:", emailResult);
+    } catch (emailError) {
+      console.error("CONTACT EMAIL SEND FAILED:", emailError);
+      return res.status(500).json({
+        ok: false,
+        message: "Failed to send message email.",
+      });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      message: "Message sent successfully.",
+    });
+  } catch (error) {
+    console.error("POST contact-message error:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Server error.",
       error: error.message,
     });
   }
